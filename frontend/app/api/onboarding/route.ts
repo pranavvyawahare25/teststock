@@ -1,10 +1,10 @@
-import { NextResponse } from 'next/server';
-import prisma from '../../utils/prisma';  // Adjust the import path if necessary
+import { NextRequest, NextResponse } from 'next/server';
+import prisma from '../../utils/prisma';
 import { auth } from '@clerk/nextjs/server';
 
-export async function POST(req: Request) {  
+export async function POST(req: NextRequest) {
   try {
-    const { userId } = await auth();  // Added await here
+    const { userId } = await auth();
 
     if (!userId) {
       return new NextResponse('Unauthorized', { status: 401 });
@@ -18,9 +18,21 @@ export async function POST(req: Request) {
       return new NextResponse('Missing required fields', { status: 400 });
     }
 
-    // Store data in the database
-    const formEntry = await prisma.onboarding.create({
-      data: {
+    // Store or update data in the database
+    const formEntry = await prisma.onboarding.upsert({
+      where: {
+        userId: userId
+      },
+      update: {
+        companyName,
+        businessType,
+        role,
+        phoneNumber,
+        pincode,
+        gstin,
+        interestedMetals,
+      },
+      create: {
         userId,
         companyName,
         businessType,
