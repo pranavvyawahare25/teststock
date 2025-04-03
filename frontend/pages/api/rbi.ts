@@ -1,21 +1,30 @@
-import type { NextApiRequest, NextApiResponse } from "next";
+import { NextApiRequest, NextApiResponse } from "next";
 
-interface RateData {
+type ExchangeRate = {
   date: string;
-  rbi_reference_rate: string;
-}
+  rate: string;
+};
+
+type ApiResponse = {
+  success?: boolean;
+  data?: ExchangeRate[];
+  error?: string;
+};
 
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse
+  res: NextApiResponse<ApiResponse>
 ) {
   try {
-    const response = await fetch("http://127.0.0.1:5000/api/rbi_rates"); // Flask API URL
-    const data: RateData[] = await response.json();
+    const response = await fetch("http://127.0.0.1:5000/scrape"); // Calls Flask API
+    const data = await response.json();
 
-    res.status(200).json(data);
-  } catch (error) {
-    console.error("Error fetching data:", error);
-    res.status(500).json({ message: "Failed to fetch RBI reference rates" });
+    if (!response.ok) {
+      throw new Error(data.error || "Failed to fetch data");
+    }
+
+    res.status(200).json({ success: true, data: data.data });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
   }
 }
