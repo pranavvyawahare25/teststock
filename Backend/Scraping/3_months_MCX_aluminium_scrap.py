@@ -1,26 +1,44 @@
 import csv
 import os
 import time
+import json
 import threading
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
 from datetime import datetime, timedelta
-from flask import Flask, jsonify, send_file
+from flask import Flask, jsonify, send_file, Response
 from flask_cors import CORS
 
 app = Flask(__name__)
 CORS(app)
 
-# Setup Selenium WebDriver
-def get_driver():
-    options = webdriver.ChromeOptions()
-    options.add_argument("--headless")  # Run in headless mode
-    return webdriver.Chrome(options=options)
+# Global variables
+latest_data = {}  # Stores the most recent data
+csv_filename = "mcx_aluminium_prices.csv"
+
+# Ensure directory exists if needed
+os.makedirs(os.path.dirname(csv_filename) if os.path.dirname(csv_filename) else '.', exist_ok=True)
 
 # URL of the page
 url = "https://www.5paisa.com/commodity-trading/mcx-aluminium-price"
+
+# Setup Selenium WebDriver
+def get_driver():
+    options = webdriver.ChromeOptions()
+    options.add_argument("--headless")
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--disable-gpu")
+    options.add_argument("--window-size=1920,1080")
+    options.add_argument("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Safari/537.36")
+    
+    service = Service(ChromeDriverManager().install())
+    driver = webdriver.Chrome(service=service, options=options)
+    return driver
 
 def get_contract_months():
     today = datetime.today()
@@ -29,67 +47,324 @@ def get_contract_months():
     for i in range(3):
         future_date = today.replace(day=1) + timedelta(days=32 * i)  # Jump to next month
         future_date = future_date.replace(day=30)  # Always set to the 30th
-        month_year_str = future_date.strftime("%B %d %Y")  # Format: "April 30 2025"
-        xpath = f"//input[@name='toggle-comm' and contains(@value, '{future_date.month}-30-{future_date.year}')]"
-        contract_months[month_year_str] = xpath
+        month_year_str = future_date.strftime("%B %Y")  # Format: "April 2025"
+        
+        month_name = future_date.strftime("%B").lower()
+        month_num = future_date.month
+        year = future_date.year
+        
+        xpath_options = [
+            f"//input[contains(@value, '{month_num}-30-{year}')]",
+            f"//input[contains(@value, '{month_name}-30-{year}')]",
+            f"//label[contains(text(), '{month_name}')]/input",
+            f"//label[contains(normalize-space(), '{month_name} {year}')]",
+            f"//div[contains(@class, 'contract') and contains(text(), '{month_name}')]",
+            f"//div[contains(@class, 'month') and contains(text(), '{month_name}')]"
+        ]
+        
+        contract_months[month_year_str] = {
+            "month_name": month_name,
+            "month_num": month_num,
+            "year": year,
+            "xpath_options": xpath_options
+        }
     
     return contract_months
 
 contract_months = get_contract_months()
 
-# CSV filename
-csv_filename = "scraped_csv/mcx_aluminium_prices.csv"
-
-# Ensure directory exists
-os.makedirs(os.path.dirname(csv_filename), exist_ok=True)
-
-def extract_data():
-    driver = get_driver()
-    driver.get(url)
+def scrape_data():
+    """Scrape the data from the website and return it in JSON format"""
+    global latest_data
+    
+    print(f"\n🚀 Scraping started at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    driver = None
+    
     try:
-        # Extract date & time
-        date_time_element = WebDriverWait(driver, 10).until(
-            EC.visibility_of_element_located((By.CLASS_NAME, "commodity-page__date"))
-        )
-        date_time_text = date_time_element.text.replace("As on ", "").strip()
-        date_obj = datetime.strptime(date_time_text, "%d %B, %Y | %H:%M")
-        date_str, time_str = date_obj.strftime("%Y-%m-%d"), date_obj.strftime("%H:%M")
+        # Initialize the driver
+        driver = get_driver()
+        driver.get(url)
+        print(f"Page loaded: {driver.title}")
         
-        row_data = {"date": date_str, "time": time_str, "prices": {}}
+        # Get the date and time from the website
+        market_timestamp = None
+        date_time_text = None
+        date_selectors = [
+            "//div[contains(@class, 'date')]",
+            "//div[contains(@class, 'commodity-page__date')]",
+            "//span[contains(@class, 'date')]",
+            "//p[contains(text(), 'As on')]",
+            "//*[contains(text(), 'As on')]"
+        ]
         
-        # Extract contract prices and rate changes
-        for month, xpath in contract_months.items():
+        for selector in date_selectors:
             try:
-                radio_button = WebDriverWait(driver, 10).until(
-                    EC.presence_of_element_located((By.XPATH, xpath))
+                date_element = WebDriverWait(driver, 5).until(
+                    EC.visibility_of_element_located((By.XPATH, selector))
                 )
-                driver.execute_script("arguments[0].click();", radio_button)
-                time.sleep(3)  # Allow time for the price to update
-
-                price_element = WebDriverWait(driver, 10).until(
-                    EC.visibility_of_element_located((By.CLASS_NAME, "commodity-page__value"))
-                )
-                price = price_element.text.strip().replace("₹", "")
-                
-                rate_element = WebDriverWait(driver, 10).until(
-                    EC.visibility_of_element_located((By.CLASS_NAME, "commodity-page__percentage"))
-                )
-                rate_change = rate_element.text.strip()
-                
-                row_data["prices"][month] = {"price": price, "rate_change": rate_change}
-            except Exception:
-                row_data["prices"][month] = {"price": "N/A", "rate_change": "N/A"}
+                date_time_text = date_element.text.strip()
+                print(f"Found date with selector: {selector}")
+                print(f"Date text: {date_time_text}")
+                break
+            except Exception as e:
+                print(f"Date selector {selector} failed: {str(e)}")
+                continue
         
+        # Parse the date and time
+        if date_time_text:
+            # Remove "As on" or similar prefixes
+            date_time_text = date_time_text.replace("As on", "").strip()
+            
+            # Try different date formats
+            date_formats = [
+                "%d %B, %Y | %H:%M",
+                "%d %B %Y | %H:%M",
+                "%d %B, %Y %H:%M",
+                "%d %b, %Y | %H:%M",
+                "%B %d, %Y | %H:%M"
+            ]
+            
+            for fmt in date_formats:
+                try:
+                    market_timestamp = datetime.strptime(date_time_text, fmt)
+                    print(f"Parsed date using format {fmt}: {market_timestamp}")
+                    break
+                except ValueError:
+                    continue
+                    
+        # If we couldn't parse the date, use current time
+        if not market_timestamp:
+            market_timestamp = datetime.now()
+            print(f"Using current time: {market_timestamp}")
+        
+        # Format date and time
+        date_str = market_timestamp.strftime("%Y-%m-%d")
+        time_str = market_timestamp.strftime("%H:%M:%S")
+        timestamp_str = market_timestamp.strftime("%Y-%m-%d %H:%M:%S")
+        
+        # Prepare data structure
+        data = {
+            "date": date_str,
+            "time": time_str,
+            "timestamp": timestamp_str,  # Full timestamp
+            "prices": {}
+        }
+        
+        # Get data for each contract month
+        for month_key, month_info in contract_months.items():
+            # Try each XPath option to find the contract element
+            found = False
+            
+            for xpath in month_info["xpath_options"]:
+                try:
+                    # Find and click the contract month
+                    print(f"Trying to find element for {month_key} with xpath: {xpath}")
+                    element = WebDriverWait(driver, 5).until(
+                        EC.presence_of_element_located((By.XPATH, xpath))
+                    )
+                    driver.execute_script("arguments[0].click();", element)
+                    print(f"Clicked element for {month_key}")
+                    time.sleep(3)  # Wait for price to update
+                    found = True
+                    break
+                except Exception as e:
+                    print(f"Failed to find/click xpath {xpath}: {str(e)}")
+                    continue
+            
+            if not found:
+                print(f"Could not locate any element for {month_key}")
+                data["prices"][month_key] = {
+                    "price": "N/A",
+                    "site_rate_change": "N/A"
+                }
+                continue
+            
+            # Get the price - trying multiple different selectors
+            price_selectors = [
+                # Try specific classes
+                "//div[contains(@class, 'commodity-page__value')]", 
+                "//div[contains(@class, 'value')]/span", 
+                "//div[contains(@class, 'value')]", 
+                "//span[contains(@class, 'value')]",
+                
+                # Try by content type
+                "//span[contains(text(), '₹')]",
+                "//div[contains(text(), '₹')]",
+                "//h1[contains(text(), '₹')]",
+                "//h2[contains(text(), '₹')]",
+                "//h3[contains(text(), '₹')]",
+                "//p[contains(text(), '₹')]",
+                
+                # Try by structure
+                "//div[contains(@class, 'price')]/parent::div",
+                "//div[contains(@class, 'rate')]/parent::div"
+            ]
+            
+            price_found = False
+            for selector in price_selectors:
+                try:
+                    price_element = WebDriverWait(driver, 5).until(
+                        EC.visibility_of_element_located((By.XPATH, selector))
+                    )
+                    price_text = price_element.text.strip()
+                    print(f"Found price with selector: {selector}")
+                    print(f"Price text: {price_text}")
+                    
+                    # If multiple values are in the text, extract the one with a Rupee symbol
+                    if "₹" in price_text:
+                        # Extract the price using a more robust approach
+                        import re
+                        price_match = re.search(r'₹\s*([\d,.]+)', price_text)
+                        if price_match:
+                            price_text = price_match.group(1)
+                    
+                    # Clean the price text
+                    price_text = price_text.replace("₹", "").replace(",", "").strip()
+                    
+                    # Try to convert to float
+                    try:
+                        price = float(price_text)
+                        price_found = True
+                        print(f"Successfully parsed price: {price}")
+                        break
+                    except ValueError:
+                        print(f"Could not convert '{price_text}' to float")
+                        continue
+                except Exception as e:
+                    print(f"Price selector {selector} failed: {str(e)}")
+                    continue
+            
+            if not price_found:
+                print(f"Could not find price for {month_key}")
+                
+                # Try a fallback method - look through the whole page source
+                try:
+                    # Look for any elements with "₹" symbol
+                    elements = driver.find_elements(By.XPATH, "//*[contains(text(), '₹')]")
+                    if elements:
+                        for el in elements:
+                            text = el.text.strip()
+                            print(f"Potential price element: {text}")
+                            try:
+                                import re
+                                price_match = re.search(r'₹\s*([\d,.]+)', text)
+                                if price_match:
+                                    price_text = price_match.group(1).replace(",", "")
+                                    price = float(price_text)
+                                    price_found = True
+                                    print(f"Fallback price found: {price}")
+                                    break
+                            except:
+                                continue
+                except Exception as fallback_err:
+                    print(f"Fallback price search failed: {str(fallback_err)}")
+            
+            if not price_found:
+                # Last resort - extract from rate change if available
+                price = "N/A"
+            
+            # Get the rate change
+            rate_change = "N/A"
+            rate_selectors = [
+                "//div[contains(@class, 'commodity-page__percentage')]",
+                "//div[contains(@class, 'percentage')]",
+                "//span[contains(@class, 'change')]",
+                "//div[contains(@class, 'change')]",
+                "//span[contains(text(), '%')]",
+                "//div[contains(text(), '%')]"
+            ]
+            
+            for selector in rate_selectors:
+                try:
+                    rate_element = WebDriverWait(driver, 3).until(
+                        EC.visibility_of_element_located((By.XPATH, selector))
+                    )
+                    rate_change = rate_element.text.strip()
+                    print(f"Found rate change with selector: {selector}")
+                    print(f"Rate change text: {rate_change}")
+                    
+                    # Try to extract price from rate change if price is N/A
+                    if price == "N/A" and "(" in rate_change and ")" in rate_change:
+                        try:
+                            # Parse the rate change to get the price
+                            import re
+                            # Something like "-5 (-2.1%)" - the absolute value is the first number
+                            change_match = re.search(r'([+-]?\d+(\.\d+)?)', rate_change)
+                            percent_match = re.search(r'\(([-+]?\d+(\.\d+)?)%\)', rate_change)
+                            
+                            if change_match and percent_match:
+                                change_value = float(change_match.group(1))
+                                percent = float(percent_match.group(1))
+                                
+                                # Calculate original price: change_value is percent% of original
+                                # So original = change_value / (percent/100)
+                                if percent != 0:  # Avoid division by zero
+                                    calculated_price = abs(change_value / (percent/100))
+                                    price = calculated_price
+                                    print(f"Calculated price from rate change: {price}")
+                        except Exception as calc_err:
+                            print(f"Failed to calculate price from rate change: {str(calc_err)}")
+                    
+                    break
+                except Exception as e:
+                    print(f"Rate selector {selector} failed: {str(e)}")
+                    continue
+            
+            # Add to data
+            data["prices"][month_key] = {
+                "price": price,
+                "site_rate_change": rate_change
+            }
+        
+        # Close the driver
         driver.quit()
-        save_to_csv(row_data)
-        return row_data
+        
+        # Save to CSV
+        save_to_csv(data)
+        
+        # Update the global latest_data
+        latest_data = data
+        
+        print(f"✅ Scraping completed for timestamp: {data['timestamp']}")
+        return data
+        
     except Exception as e:
-        driver.quit()
+        print(f"❌ Error during scraping: {str(e)}")
+        # If driver is still open, close it
+        try:
+            if driver:
+                driver.quit()
+        except:
+            pass
+        
+        # Return error or latest data if available
+        if latest_data:
+            return latest_data
         return {"error": str(e)}
 
 def save_to_csv(data):
-    headers = ["Date", "Time"] + list(contract_months.keys())
-    row = [data["date"], data["time"]] + [f'{data["prices"][month]["price"]} ({data["prices"][month]["rate_change"]})' for month in contract_months]
+    """Save the scraped data to a CSV file"""
+    headers = ["Date", "Time", "Timestamp"]
+    for month in contract_months:
+        headers.extend([
+            f"{month}_Price", 
+            f"{month}_Rate_Change"
+        ])
+    
+    row = [
+        data["date"], 
+        data["time"],
+        data["timestamp"]
+    ]
+    
+    for month in contract_months:
+        if month in data["prices"]:
+            row.extend([
+                data["prices"][month].get("price", "N/A"),
+                data["prices"][month].get("site_rate_change", "N/A")
+            ])
+        else:
+            row.extend(["N/A", "N/A"])
     
     file_exists = os.path.exists(csv_filename)
     with open(csv_filename, "a", newline="", encoding="utf-8") as file:
@@ -97,36 +372,52 @@ def save_to_csv(data):
         if not file_exists:
             writer.writerow(headers)
         writer.writerow(row)
+    
+    print(f"Data saved to {csv_filename}")
 
-# Background scraper thread
-def scraper_thread():
+# Simple background thread that scrapes data every 10 seconds
+def background_scraper():
     while True:
-        print("\n🚀 Scraping started!")
-        extract_data()
-        print("✅ Data scraped and saved.")
-        time.sleep(10)  # Scrape every 5 minutes
+        try:
+            scrape_data()
+        except Exception as e:
+            print(f"Error in background scraper: {str(e)}")
+        
+        time.sleep(10)  # 10-second interval as requested
+
 
 @app.route("/scrape", methods=["GET"])
 def scrape():
-    data = extract_data()
+    data = scrape_data()
     return jsonify(data)
+
+@app.route("/stream")
+def stream():
+    def event_stream():
+        """Server-sent event generator function."""
+        while True:
+            yield f"data: {json.dumps(latest_data)}\n\n"
+            time.sleep(10)  # Send updates every 10 seconds
+    
+    return Response(event_stream(), mimetype="text/event-stream")
 
 @app.route("/download", methods=["GET"])
 def download_csv():
+    """Download the complete CSV file with all historical data"""
     if os.path.exists(csv_filename):
         return send_file(csv_filename, as_attachment=True)
     return jsonify({"error": "CSV file not found"}), 404
 
 if __name__ == "__main__":
-    thread = threading.Thread(target=scraper_thread, daemon=True)
+    # Perform initial data scrape
+    scrape_data()
+    
+    # Start background scraper thread
+    thread = threading.Thread(target=background_scraper, daemon=True)
     thread.start()
-    app.run(debug=True, port=5000)
-
-
-
-
-
-
+    
+    # Run the Flask app
+    app.run(debug=True, port=5002, host="0.0.0.0")
 
 
 
@@ -246,304 +537,3 @@ if __name__ == "__main__":
 
 
 
-
-
-# import csv
-# import os
-# import time
-# import threading
-# import logging
-# from selenium import webdriver
-# from selenium.webdriver.common.by import By
-# from selenium.webdriver.support.ui import WebDriverWait
-# from selenium.webdriver.support import expected_conditions as EC
-# from selenium.webdriver.chrome.service import Service
-# from webdriver_manager.chrome import ChromeDriverManager
-# from datetime import datetime, timedelta
-# from flask import Flask, jsonify, send_file
-# from flask_cors import CORS
-
-# # Setup logging
-# logging.basicConfig(level=logging.INFO, 
-#                     format='%(asctime)s - %(levelname)s - %(message)s')
-# logger = logging.getLogger(__name__)
-
-# app = Flask(__name__)
-# CORS(app)
-
-# # Setup Selenium WebDriver with improved error handling
-# def get_driver():
-#     options = webdriver.ChromeOptions()
-#     options.add_argument("--headless=new")
-#     options.add_argument("--no-sandbox")
-#     options.add_argument("--disable-dev-shm-usage")
-#     options.add_argument("--disable-gpu")
-#     options.add_argument("--window-size=1920,1080")  # Set window size
-    
-#     # Additional options to avoid detection
-#     options.add_argument("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36")
-#     options.add_experimental_option("excludeSwitches", ["enable-automation"])
-#     options.add_experimental_option("useAutomationExtension", False)
-    
-#     for attempt in range(3):
-#         try:
-#             logger.info(f"Initializing WebDriver (Attempt {attempt+1}/3)")
-#             # Use specific ChromeDriver version if needed
-#             # service = Service(ChromeDriverManager(version="114.0.5735.90").install())
-#             service = Service(ChromeDriverManager().install())
-#             driver = webdriver.Chrome(service=service, options=options)
-            
-#             # Execute CDP commands to avoid detection
-#             driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
-#                 "source": """
-#                 Object.defineProperty(navigator, 'webdriver', {
-#                     get: () => undefined
-#                 })
-#                 """
-#             })
-            
-#             logger.info("WebDriver initialized successfully")
-#             return driver
-#         except Exception as e:
-#             logger.error(f"WebDriver Error (Attempt {attempt+1}/3): {str(e)}")
-#             time.sleep(2)
-    
-#     raise Exception("Failed to initialize WebDriver after multiple attempts")
-
-# # URL of the page
-# url = "https://www.5paisa.com/commodity-trading/mcx-aluminium-price"
-
-# def get_contract_months():
-#     today = datetime.today()
-#     contract_months = {}
-
-#     for i in range(3):
-#         future_date = today.replace(day=1) + timedelta(days=32 * i)
-#         future_date = future_date.replace(day=30)
-#         month_year_str = future_date.strftime("%B %d %Y")
-        
-#         # Improved XPath with more flexibility
-#         xpath = f"//input[@name='toggle-comm' and contains(@value, '{future_date.month}-') and contains(@value, '{future_date.year}')]"
-#         contract_months[month_year_str] = xpath
-
-#     logger.info(f"Generated contract months: {contract_months}")
-#     return contract_months
-
-# contract_months = get_contract_months()
-
-# # CSV filename
-# csv_filename = "scraped_csv/mcx_aluminium_prices.csv"
-
-# # Ensure directory exists
-# os.makedirs(os.path.dirname(csv_filename), exist_ok=True)
-
-# def extract_data():
-#     driver = None
-#     try:
-#         logger.info("Starting data extraction")
-#         driver = get_driver()
-        
-#         # Add explicit wait before loading the page
-#         driver.get(url)
-#         logger.info(f"Navigated to URL: {url}")
-        
-#         # Take screenshot for debugging
-#         screenshot_path = "debug_screenshot.png"
-#         driver.save_screenshot(screenshot_path)
-#         logger.info(f"Saved debug screenshot to {screenshot_path}")
-        
-#         # Wait for page to fully load
-#         WebDriverWait(driver, 15).until(
-#             EC.presence_of_element_located((By.TAG_NAME, "body"))
-#         )
-#         time.sleep(3)  # Additional wait for dynamic content
-        
-#         try:
-#             # Extract date & time with improved error handling
-#             date_time_element = WebDriverWait(driver, 15).until(
-#                 EC.visibility_of_element_located((By.CLASS_NAME, "commodity-page__date"))
-#             )
-#             date_time_text = date_time_element.text.replace("As on ", "").strip()
-#             logger.info(f"Extracted date/time text: '{date_time_text}'")
-            
-#             try:
-#                 date_obj = datetime.strptime(date_time_text, "%d %B, %Y | %H:%M")
-#             except ValueError:
-#                 # Try alternative format if the first fails
-#                 date_obj = datetime.strptime(date_time_text, "%d %b, %Y | %H:%M")
-            
-#             date_str, time_str = date_obj.strftime("%Y-%m-%d"), date_obj.strftime("%H:%M")
-#         except Exception as e:
-#             logger.error(f"Error extracting date/time: {str(e)}")
-#             date_str, time_str = datetime.now().strftime("%Y-%m-%d"), datetime.now().strftime("%H:%M")
-            
-#         row_data = {"date": date_str, "time": time_str, "prices": {}}
-        
-#         # Print page source for debugging
-#         logger.debug(f"Page source: {driver.page_source[:500]}...")  # First 500 chars
-        
-#         # Extract contract prices and rate changes
-#         for month, xpath in contract_months.items():
-#             try:
-#                 logger.info(f"Attempting to extract data for contract month: {month}")
-                
-#                 # Find radio button with more robust approach
-#                 try:
-#                     radio_button = WebDriverWait(driver, 10).until(
-#                         EC.element_to_be_clickable((By.XPATH, xpath))
-#                     )
-#                     logger.info(f"Found radio button for {month}")
-#                 except Exception as e:
-#                     logger.warning(f"Could not find radio button with original XPath for {month}: {str(e)}")
-#                     # Try alternative XPath
-#                     month_num = datetime.strptime(month.split()[0], "%B").month
-#                     year = month.split()[2]
-#                     alt_xpath = f"//input[contains(@value, '{month_num}') and contains(@value, '{year}')]"
-#                     radio_button = WebDriverWait(driver, 10).until(
-#                         EC.element_to_be_clickable((By.XPATH, alt_xpath))
-#                     )
-                
-#                 # Click with JavaScript as it's more reliable
-#                 driver.execute_script("arguments[0].click();", radio_button)
-#                 logger.info(f"Clicked on radio button for {month}")
-#                 time.sleep(3)  # Wait for data to load
-                
-#                 # Extract price with more robust approach
-#                 try:
-#                     price_element = WebDriverWait(driver, 10).until(
-#                         EC.visibility_of_element_located((By.CLASS_NAME, "commodity-page__value"))
-#                     )
-#                     price = price_element.text.strip().replace("₹", "")
-#                 except Exception as e:
-#                     logger.warning(f"Error finding price with original selector: {str(e)}")
-#                     # Try alternative selector
-#                     price_element = driver.find_element(By.XPATH, "//div[contains(@class, 'value') and contains(text(), '₹')]")
-#                     price = price_element.text.strip().replace("₹", "")
-                
-#                 logger.info(f"Extracted price for {month}: {price}")
-                
-#                 # Extract rate change with more robust approach
-#                 try:
-#                     rate_element = WebDriverWait(driver, 10).until(
-#                         EC.visibility_of_element_located((By.CLASS_NAME, "commodity-page__percentage"))
-#                     )
-#                     rate_change = rate_element.text.strip()
-#                 except Exception as e:
-#                     logger.warning(f"Error finding rate change with original selector: {str(e)}")
-#                     # Try alternative selector
-#                     rate_element = driver.find_element(By.XPATH, "//div[contains(@class, 'percentage')]")
-#                     rate_change = rate_element.text.strip()
-                
-#                 logger.info(f"Extracted rate change for {month}: {rate_change}")
-                
-#                 row_data["prices"][month] = {"price": price, "rate_change": rate_change}
-#             except Exception as e:
-#                 logger.error(f"Error extracting data for {month}: {str(e)}")
-#                 row_data["prices"][month] = {"price": "N/A", "rate_change": "N/A"}
-        
-#         save_to_csv(row_data)
-#         logger.info("Data extraction completed successfully")
-#         return row_data
-#     except Exception as e:
-#         logger.error(f"Error in extract_data: {str(e)}")
-#         return {"error": str(e)}
-#     finally:
-#         if driver:
-#             driver.quit()
-#             logger.info("WebDriver closed")
-
-# def save_to_csv(data):
-#     try:
-#         headers = ["Date", "Time"] + list(contract_months.keys())
-#         row = [data["date"], data["time"]] + [f'{data["prices"][month]["price"]} ({data["prices"][month]["rate_change"]})' for month in contract_months]
-        
-#         file_exists = os.path.exists(csv_filename)
-#         with open(csv_filename, "a", newline="", encoding="utf-8") as file:
-#             writer = csv.writer(file)
-#             if not file_exists:
-#                 writer.writerow(headers)
-#             writer.writerow(row)
-#         logger.info(f"Data saved to CSV: {csv_filename}")
-#     except Exception as e:
-#         logger.error(f"Error saving to CSV: {str(e)}")
-
-# # Background scraper thread
-# def scraper_thread():
-#     while True:
-#         try:
-#             logger.info("Starting scheduled scraping")
-#             extract_data()
-#             logger.info("Scheduled scraping completed")
-#         except Exception as e:
-#             logger.error(f"Error in scheduled scraping: {str(e)}")
-        
-#         # Wait for next scraping
-#         time.sleep(3600)  # Scrape every hour instead of every 10 seconds
-
-# @app.route("/3_months_LME", methods=["GET"])
-# def scrape():
-#     try:
-#         logger.info("API scrape endpoint called")
-#         data = extract_data()
-#         return jsonify(data)
-#     except Exception as e:
-#         logger.error(f"Error in API scrape endpoint: {str(e)}")
-#         return jsonify({"error": str(e)}), 500
-
-# @app.route("/download", methods=["GET"])
-# def download_csv():
-#     try:
-#         logger.info("API download endpoint called")
-#         if os.path.exists(csv_filename):
-#             return send_file(csv_filename, as_attachment=True)
-#         logger.warning("CSV file not found")
-#         return jsonify({"error": "CSV file not found"}), 404
-#     except Exception as e:
-#         logger.error(f"Error in API download endpoint: {str(e)}")
-#         return jsonify({"error": str(e)}), 500
-
-# @app.route("/", methods=["GET"])
-# def home():
-#     return """
-#     <html>
-#         <head>
-#             <title>MCX Aluminium Price Scraper</title>
-#             <style>
-#                 body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; }
-#                 .container { max-width: 800px; margin: 0 auto; }
-#                 h1 { color: #333; }
-#                 .btn { display: inline-block; background: #4CAF50; color: white; padding: 10px 15px; 
-#                        text-decoration: none; border-radius: 4px; margin-right: 10px; }
-#                 .info { background: #f8f8f8; padding: 15px; border-radius: 4px; margin-top: 20px; }
-#             </style>
-#         </head>
-#         <body>
-#             <div class="container">
-#                 <h1>MCX Aluminium Price Scraper</h1>
-#                 <p>Use the buttons below to access the scraper functionality:</p>
-#                 <a href="/3_months_LME" class="btn">Scrape Latest Data</a>
-#                 <a href="/download" class="btn">Download CSV</a>
-                
-#                 <div class="info">
-#                     <h3>API Endpoints:</h3>
-#                     <ul>
-#                         <li><strong>/3_months_LME</strong> - Scrape latest MCX Aluminium prices</li>
-#                         <li><strong>/download</strong> - Download the CSV with all scraped data</li>
-#                     </ul>
-#                 </div>
-#             </div>
-#         </body>
-#     </html>
-#     """
-
-# if __name__ == "__main__":
-#     # Create a dedicated thread for background scraping
-#     if os.environ.get("ENABLE_BACKGROUND_SCRAPING", "false").lower() == "true":
-#         thread = threading.Thread(target=scraper_thread, daemon=True)
-#         thread.start()
-#         logger.info("Background scraping thread started")
-    
-#     # Run the Flask app
-#     port = int(os.environ.get("PORT", 5002))
-#     logger.info(f"Starting Flask app on port {port}")
-#     app.run(host="0.0.0.0", debug=False, port=port)
