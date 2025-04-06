@@ -215,7 +215,7 @@ def handle_error(error):
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 3232))
-    ngrok_url = "57d0-125-99-148-34.ngrok-free.app "
+    ngrok_url = "591c-2401-4900-57a3-b6fb-69c5-cc00-b7cb-2af0.ngrok-free.app"
     print(f'Server is running on port {port}')
     print(f'Webhook URL: https://{ngrok_url}/webhook')
     print(f'Status Callback URL: https://{ngrok_url}/status')

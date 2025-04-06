@@ -37,26 +37,26 @@ export default function LiveSpotPriceCard({
       ></div>
       
       {/* Text container with forced GPU layer */}
-      <div className="relative flex flex-col h-full gap-1.5 transform-gpu">
+      <div className="relative transform-gpu flex flex-col gap-2"> {/* Forces GPU rendering */}
         {/* Date */}
-        <div className="text-sm text-gray-600 font-medium">{CURRENT_DATE}</div>
+        <div className="text-sm text-gray-600 font-medium antialiased subpixel-antialiased">{CURRENT_DATE}</div>
 
         {/* Price Display */}
-        <div className="flex items-baseline justify-between mt-1">
-          <span className="font-mono text-2xl font-bold bg-gradient-to-r from-indigo-600 to-blue-600 bg-clip-text text-transparent
-            leading-tight tracking-tight"> {/* Tight letter spacing */}
+        <div className="flex items-baseline justify-between">
+          <span className="font-mono text-2xl font-bold text-indigo-600
+            leading-tight tracking-tight antialiased subpixel-antialiased"> {/* Improved text rendering */}
             ${totalPrice.toFixed(2)}
           </span>
         </div>
 
         {/* Change Indicators */}
-        <div className={`flex items-center gap-1.5 text-sm ${trendColor} mt-2 font-medium`}>
+        <div className={`flex items-center gap-1.5 text-sm ${trendColor} font-medium antialiased subpixel-antialiased`}>
           <TrendIcon className="w-4 h-4 flex-shrink-0" />
           <span className="whitespace-nowrap">
             {isIncrease ? '+' : '-'}${Math.abs(spread).toFixed(2)} ({percentageChange}%)
           </span>
         </div>
-        <div className={`flex items-center gap-1.5 text-sm ${trendColor} font-medium`}>
+        <div className={`flex items-center gap-1.5 text-sm ${trendColor} font-medium antialiased subpixel-antialiased`}>
           <TrendIcon className="w-4 h-4 flex-shrink-0" />
           <span className="whitespace-nowrap">
             {isIncrease ? '+' : '-'}₹{spreadINR}

@@ -43,24 +43,21 @@ export default function PriceAlert() {
       border border-white/50 shadow-[0_4px_12px_rgba(0,0,0,0.05)] hover:shadow-[0_6px_16px_rgba(0,0,0,0.1)] 
       transition-all duration-300 w-full">
       
-      {/* Subtle blur overlay with coming soon message */}
-      <div className="absolute inset-0 backdrop-blur-[1px] z-10 rounded-xl flex items-center justify-center">
-        <div className="bg-white/80 border border-blue-100 rounded-lg p-6 shadow-lg text-center backdrop-blur-[2px]">
-          <h3 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
-            Coming Soon
-          </h3>
-          <p className="text-gray-600 mb-4">
-            Price alerts feature will be available in our next update!
-          </p>
-          <div className="inline-flex items-center justify-center px-4 py-2 bg-blue-100/70 text-blue-600 rounded-full text-sm font-medium">
-            <Sparkles className="w-4 h-4 mr-2" />
-            Stay tuned
+      {/* Blur overlay - reduced opacity */}
+      <div className="absolute inset-0 backdrop-blur-[0.5px] z-10 rounded-xl opacity-70"></div>
+
+      {/* Small Coming Soon card at the top */}
+      <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-20 w-full max-w-xs">
+        <div className="bg-white/90 border border-blue-100 rounded-lg p-3 shadow-md text-center backdrop-blur-[2px] mx-4">
+          <div className="inline-flex items-center justify-center gap-2">
+            <Sparkles className="w-4 h-4 text-blue-500" />
+            <span className="text-sm font-medium text-blue-600">Coming Soon - Next Update</span>
           </div>
         </div>
       </div>
 
-      {/* Original content fully visible */}
-      <div className="opacity-100">
+      {/* Original content (blurred with reduced opacity) */}
+      <div className="blur-[1px] opacity-80 pointer-events-none">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2">
           <div className="flex items-center gap-2">
             <Bell className="w-5 h-5 text-blue-600" />

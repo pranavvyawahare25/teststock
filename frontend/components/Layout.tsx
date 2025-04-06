@@ -14,12 +14,15 @@ export default function Layout({ children }: LayoutProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [isTablet, setIsTablet] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
   const isHomePage = pathname === "/";
   const { isSignedIn } = useAuth();
 
   // Handle dark mode
   useEffect(() => {
+    setMounted(true);
     const isDark = localStorage.getItem("darkMode") === "true";
     setIsDarkMode(isDark);
     if (isDark) {
@@ -37,36 +40,49 @@ export default function Layout({ children }: LayoutProps) {
     }
   };
 
-  // Handle mobile sidebar state
+  // Handle mobile and tablet sidebar state
   useEffect(() => {
+    if (!mounted) return;
+
     const handleResize = () => {
-      if (window.innerWidth >= 768) {
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      
+      // Check if device is tablet or vertical screen
+      const isTabletDevice = width >= 768 && width <= 1024 || (width < 1024 && height > width);
+      setIsTablet(isTabletDevice);
+      
+      // Close mobile sidebar on larger screens
+      if (width >= 1024) {
         setIsMobileOpen(false);
       }
     };
 
+    handleResize(); // Initial check
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
-  }, []);
+  }, [mounted]);
 
   const handleMobileSidebarToggle = () => {
-    // Use a timeout to ensure the state update happens after any other state changes
-    setTimeout(() => {
-      setIsMobileOpen(prev => !prev);
-    }, 0);
+    setIsMobileOpen(prev => !prev);
   };
 
   // Prevent scrolling when mobile sidebar is open
   useEffect(() => {
+    if (!mounted) return;
+
     if (isMobileOpen) {
       document.body.classList.add("sidebar-open");
+      document.body.style.overflow = "hidden";
     } else {
       document.body.classList.remove("sidebar-open");
+      document.body.style.overflow = "";
     }
     return () => {
       document.body.classList.remove("sidebar-open");
+      document.body.style.overflow = "";
     };
-  }, [isMobileOpen]);
+  }, [isMobileOpen, mounted]);
 
   // For the homepage, render children directly without any wrapper
   if (isHomePage) {
@@ -82,7 +98,6 @@ export default function Layout({ children }: LayoutProps) {
       />
       
       <Sidebar
-        currentPage="dashboard"
         isCollapsed={isCollapsed}
         onCollapse={setIsCollapsed}
         isDarkMode={isDarkMode}
@@ -93,7 +108,11 @@ export default function Layout({ children }: LayoutProps) {
 
       <main
         className={`transition-all duration-300 p-4 md:p-6 lg:p-8 ${
-          isCollapsed ? "md:ml-16" : "md:ml-64"
+          isTablet || isMobileOpen 
+            ? "ml-0" 
+            : isCollapsed 
+              ? "md:ml-16" 
+              : "md:ml-64"
         }`}
       >
         <div className="max-w-7xl mx-auto">

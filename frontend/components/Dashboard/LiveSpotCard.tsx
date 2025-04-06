@@ -1,8 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Wifi, Clock, TrendingUp, TrendingDown } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import dynamic from 'next/dynamic';
 
 interface LiveSpotCardProps {
@@ -12,6 +12,14 @@ interface LiveSpotCardProps {
     changePercent?: number;
     unit?: string;
     isDerived?: boolean;
+    apiUrl?: string;
+}
+
+interface PriceData {
+    spotPrice: number;
+    change: number;
+    changePercent: number;
+    lastUpdated: string;
 }
 
 const ClockComponent = dynamic(() => import('./Clock'), { 
@@ -25,10 +33,54 @@ export default function LiveSpotCard({
     change = 13.00,
     changePercent = 0.48,
     unit = '/MT',
-    isDerived = true
+    isDerived = true,
+    apiUrl = '/api/metal-price'
 }: LiveSpotCardProps) {
-    const displayTime = lastUpdated || new Date();
-    const isIncrease = change >= 0;
+    const [priceData, setPriceData] = useState<PriceData | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        const fetchPriceData = async () => {
+            try {
+                setLoading(true);
+                const response = await fetch(apiUrl);
+                
+                if (!response.ok) {
+                    throw new Error('Failed to fetch price data');
+                }
+                
+                const data = await response.json();
+                setPriceData(data);
+                setError(null);
+            } catch (err) {
+                console.error('Error fetching price data:', err);
+                setError('Failed to load price data');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        // Fetch data immediately
+        fetchPriceData();
+        
+        // Set up polling every 30 seconds
+        const intervalId = setInterval(fetchPriceData, 30000);
+        
+        // Clean up interval on component unmount
+        return () => clearInterval(intervalId);
+    }, [apiUrl]);
+
+    // Use API data if available, otherwise use props
+    const displayTime = priceData?.lastUpdated 
+        ? parseISO(priceData.lastUpdated) 
+        : (lastUpdated || new Date());
+    
+    const currentSpotPrice = priceData?.spotPrice || spotPrice;
+    const currentChange = priceData?.change || change;
+    const currentChangePercent = priceData?.changePercent || changePercent;
+    
+    const isIncrease = currentChange >= 0;
     const trendColor = isIncrease ? "text-green-600" : "text-red-600";
     const TrendIcon = isIncrease ? TrendingUp : TrendingDown;
 
@@ -67,20 +119,34 @@ export default function LiveSpotCard({
                         {format(displayTime, 'd MMMM yyyy')}
                     </div>
 
-                    <div className="flex items-baseline gap-2">
-                        <span className="font-mono text-2xl font-bold bg-gradient-to-r from-indigo-600 to-blue-600 
-                          bg-clip-text text-transparent gradient-text crisp-text">
-                            ${spotPrice.toFixed(2)}
-                        </span>
-                        <span className="text-sm text-gray-600 crisp-text">{unit}</span>
-                    </div>
+                    {loading ? (
+                        <div className="text-center py-4">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
+                            <p className="text-sm text-gray-500 mt-2">Loading price data...</p>
+                        </div>
+                    ) : error ? (
+                        <div className="text-center py-4">
+                            <p className="text-sm text-red-500">{error}</p>
+                            <p className="text-xs text-gray-500 mt-1">Using default values</p>
+                        </div>
+                    ) : (
+                        <>
+                            <div className="flex items-baseline gap-2">
+                                <span className="font-mono text-2xl font-bold bg-gradient-to-r from-indigo-600 to-blue-600 
+                                  bg-clip-text text-transparent gradient-text crisp-text">
+                                    ${currentSpotPrice.toFixed(2)}
+                                </span>
+                                <span className="text-sm text-gray-600 crisp-text">{unit}</span>
+                            </div>
 
-                    <div className={`flex items-center gap-1.5 text-sm ${trendColor} mt-2 font-medium`}>
-                        <TrendIcon className="w-4 h-4 flex-shrink-0 crisp-text" />
-                        <span className="whitespace-nowrap crisp-text">
-                            {isIncrease ? '+' : '-'}${Math.abs(change).toFixed(2)} ({changePercent.toFixed(2)}%)
-                        </span>
-                    </div>
+                            <div className={`flex items-center gap-1.5 text-sm ${trendColor} mt-2 font-medium`}>
+                                <TrendIcon className="w-4 h-4 flex-shrink-0 crisp-text" />
+                                <span className="whitespace-nowrap crisp-text">
+                                    {isIncrease ? '+' : '-'}${Math.abs(currentChange).toFixed(2)} ({currentChangePercent.toFixed(2)}%)
+                                </span>
+                            </div>
+                        </>
+                    )}
                 </div>
             </div>
         </div>
