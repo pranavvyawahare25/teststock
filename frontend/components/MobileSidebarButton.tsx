@@ -1,6 +1,6 @@
 "use client";
 
-import { Menu } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { useState, useEffect } from "react";
 
 interface MobileSidebarButtonProps {
@@ -44,18 +44,19 @@ export default function MobileSidebarButton({ isOpen, onClick }: MobileSidebarBu
     return null;
   }
 
-  // Don't render the button when sidebar is open
-  if (isOpen) {
-    return null;
-  }
-
   return (
     <button
       onClick={handleClick}
-      className="fixed top-4 left-4 z-50 p-2.5 rounded-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-lg hover:shadow-xl transition-all duration-300"
-      aria-label="Open sidebar"
+      className={`fixed top-4 left-4 z-50 p-2.5 rounded-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-lg hover:shadow-xl transition-all duration-300 ${
+        isOpen ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800' : ''
+      }`}
+      aria-label={isOpen ? "Close sidebar" : "Open sidebar"}
     >
-      <Menu className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+      {isOpen ? (
+        <X className="w-5 h-5 text-red-500 dark:text-red-400" />
+      ) : (
+        <Menu className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+      )}
     </button>
   );
 } 
