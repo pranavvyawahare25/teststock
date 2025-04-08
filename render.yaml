@@ -3,7 +3,7 @@ services:
     name: stock-frontend
     runtime: node
     rootDir: frontend
-    buildCommand: npm install && npm run build
+    buildCommand: ./render-build.sh
     startCommand: npm start
     envVars:
       - key: NODE_ENV
