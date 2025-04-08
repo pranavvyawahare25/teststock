@@ -20,12 +20,13 @@ module.exports = {
         "muted-foreground": "var(--muted-foreground)",
         accent: "var(--accent)",
         "accent-foreground": "var(--accent-foreground)",
+        ring: "var(--ring)",
       },
       outlineColor: {
         ring: "rgb(var(--ring) / <alpha-value>)",
       },
       borderColor: {
-        border: "var(--border)",
+        DEFAULT: "var(--border)",
       },
       ringColor: {
         DEFAULT: "var(--ring)",
