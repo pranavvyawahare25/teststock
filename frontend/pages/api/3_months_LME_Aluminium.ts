@@ -30,11 +30,11 @@ export default async function handler(
 
     // Important: Always send a response
     return res.status(200).json({ success: true, data: data.data });
-  } catch (error: any) {
-    console.error("🚨 Error fetching aluminum price:", error.message);
+  } catch (error: unknown) {
+    console.error("🚨 Error fetching aluminum price:", error instanceof Error ? error.message : String(error));
 
     // Important: Send error response
-    return res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
   }
 }
 
@@ -73,7 +73,7 @@ export default async function handler(
 //       throw new Error("No streaming response from aluminum price API");
 //     }
 
-//     // ✅ Set up event stream handling
+//    catch (error: any)  // ✅ Set up event stream handling
 //     const reader = flaskResponse.body.getReader();
 //     const decoder = new TextDecoder();
 

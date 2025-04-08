@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react';
+
 import { ArrowRight, Bell, TrendingUp, Target, FileText } from 'lucide-react';
 import NeonGraphBackdrop from './NeonGraphBackdrop';
 import Footer from './Footer';
@@ -8,7 +8,7 @@ import SupportButton from './SupportButton';
 import Link from 'next/link';
 
 export default function HomePage() {
-  const [showAuthModal, setShowAuthModal] = useState(false);
+  
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-black flex flex-col">

@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Filter, Plus, Search, AlertCircle, SlidersHorizontal } from 'lucide-react';
-import CreateAlertModel from './CreateAlertModel';
+import CreateAlertModel from '../../components/CreateAlertModel';
 
 interface AlertFilters {
     type: 'all' | 'price' | 'percentage';
@@ -25,30 +25,30 @@ interface AlertFormData {
 }
 
 export default function ManageAlerts() {
-    // Search state
     const [searchQuery, setSearchQuery] = useState<string>('');
-
-    // Pagination state
-    const [currentPage, setCurrentPage] = useState<number>(1);
-    const [totalPages] = useState<number>(5); // Mock value
-
-    // Modal state
     const [showCreateModal, setShowCreateModal] = useState<boolean>(false);
-
-    // Filters state
     const [showFilters, setShowFilters] = useState<boolean>(false);
     const [filters, setFilters] = useState<AlertFilters>({
         type: 'all',
         status: 'all',
         sortBy: 'createdAt'
     });
-
-    // Mock alerts data
     const [alerts, setAlerts] = useState<Alert[]>([]);
 
-    const handleFilterChange = (newFilters: Partial<AlertFilters>) => {
-        setFilters(prev => ({ ...prev, ...newFilters }));
-        setCurrentPage(1);
+    const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setSearchQuery(e.target.value);
+    };
+
+    const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const { name, value } = e.target;
+        setFilters(prev => ({
+            ...prev,
+            [name]: value
+        }));
+    };
+
+    const handleCreateAlert = () => {
+        setShowCreateModal(true);
     };
 
     return (
@@ -65,7 +65,7 @@ export default function ManageAlerts() {
                 </div>
 
                 <button
-                    onClick={() => setShowCreateModal(true)}
+                    onClick={handleCreateAlert}
                     className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all shadow-md hover:shadow-lg text-sm sm:text-base w-full sm:w-auto justify-center"
                 >
                     <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -100,8 +100,9 @@ export default function ManageAlerts() {
                                     Type
                                 </label>
                                 <select
+                                    name="type"
                                     value={filters.type}
-                                    onChange={(e) => handleFilterChange({ type: e.target.value as AlertFilters['type'] })}
+                                    onChange={handleFilterChange}
                                     className="w-full px-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
                                 >
                                     <option value="all">All Types</option>
@@ -115,8 +116,9 @@ export default function ManageAlerts() {
                                     Status
                                 </label>
                                 <select
+                                    name="status"
                                     value={filters.status}
-                                    onChange={(e) => handleFilterChange({ status: e.target.value as AlertFilters['status'] })}
+                                    onChange={handleFilterChange}
                                     className="w-full px-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
                                 >
                                     <option value="all">All Status</option>
@@ -130,8 +132,9 @@ export default function ManageAlerts() {
                                     Sort By
                                 </label>
                                 <select
+                                    name="sortBy"
                                     value={filters.sortBy}
-                                    onChange={(e) => handleFilterChange({ sortBy: e.target.value as AlertFilters['sortBy'] })}
+                                    onChange={handleFilterChange}
                                     className="w-full px-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
                                 >
                                     <option value="createdAt">Date Created</option>
@@ -152,7 +155,7 @@ export default function ManageAlerts() {
                             <input
                                 type="text"
                                 value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
+                                onChange={handleSearchChange}
                                 placeholder="Search alerts..."
                                 className="w-full pl-9 sm:pl-10 pr-4 py-2 sm:py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
                             />
@@ -160,32 +163,8 @@ export default function ManageAlerts() {
                     </div>
 
                     {/* Alerts List */}
-                    {alerts.length > 0 ? (
-                        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-                            <div className="p-4 sm:p-6 text-center text-gray-500">
-                                Alerts list would be rendered here
-                            </div>
-
-                            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 sm:px-6 py-3 sm:py-4 border-t border-gray-100">
-                                <button
-                                    disabled={currentPage === 1}
-                                    onClick={() => setCurrentPage(currentPage - 1)}
-                                    className="px-3 sm:px-4 py-1.5 sm:py-2 border rounded-lg disabled:opacity-50 hover:bg-gray-50 text-sm sm:text-base w-full sm:w-auto"
-                                >
-                                    Previous
-                                </button>
-                                <span className="text-sm sm:text-base text-gray-600">Page {currentPage} of {totalPages}</span>
-                                <button
-                                    disabled={currentPage === totalPages}
-                                    onClick={() => setCurrentPage(currentPage + 1)}
-                                    className="px-3 sm:px-4 py-1.5 sm:py-2 border rounded-lg disabled:opacity-50 hover:bg-gray-50 text-sm sm:text-base w-full sm:w-auto"
-                                >
-                                    Next
-                                </button>
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6">
+                    <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6">
+                        {alerts.length === 0 ? (
                             <div className="flex flex-col items-center justify-center py-8 sm:py-16">
                                 <div className="w-12 h-12 sm:w-16 sm:h-16 bg-blue-50 rounded-full flex items-center justify-center mb-3 sm:mb-4">
                                     <AlertCircle className="w-5 h-5 sm:w-8 sm:h-8 text-blue-600" />
@@ -193,29 +172,36 @@ export default function ManageAlerts() {
                                 <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-1 sm:mb-2">No alerts found</h3>
                                 <p className="text-xs sm:text-sm text-gray-500 text-center">Create your first price alert to get started</p>
                             </div>
-                        </div>
-                    )}
+                        ) : (
+                            <div className="space-y-4">
+                                {alerts.map(alert => (
+                                    <div key={alert.id} className="p-4 border border-gray-200 rounded-lg">
+                                        {/* Alert content will go here */}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
 
-            {/* Create Alert Modal */}
             {showCreateModal && (
                 <CreateAlertModel
                     onClose={() => setShowCreateModal(false)}
-                    onCreate={(newAlert: AlertFormData) => {
-                        const alert: Alert = {
+                    onCreate={(alertData: AlertFormData) => {
+                        const newAlert: Alert = {
                             id: Math.random().toString(36).substr(2, 9),
                             type: 'price',
-                            value: newAlert.targetPrice,
+                            value: alertData.targetPrice,
                             status: 'active',
                             createdAt: new Date().toISOString(),
                             updatedAt: new Date().toISOString()
                         };
-                        setAlerts(prev => [...prev, alert]);
+                        setAlerts(prev => [...prev, newAlert]);
                         setShowCreateModal(false);
                     }}
                 />
             )}
         </div>
     );
-}
+} 

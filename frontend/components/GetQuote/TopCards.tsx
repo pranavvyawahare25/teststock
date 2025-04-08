@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { Calendar, TrendingUp, TrendingDown, Clock, Wifi } from 'lucide-react';
+import { Calendar, TrendingUp, TrendingDown } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import LiveSpotCard from '../Dashboard/LiveSpotCard';
 
@@ -66,8 +66,6 @@ const MCXMonthCard = ({ month, price, change }: MCXMonthCardProps) => {
 };
 
 const TopCards = () => {
-  const lastUpdated = new Date();
-  
   // MCX data
   const mcxData = {
     march: { price: 201.85, change: 0.42 },

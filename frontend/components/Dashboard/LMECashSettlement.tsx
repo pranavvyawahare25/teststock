@@ -13,7 +13,7 @@ export default function LiveSpotPriceCard({
   basePrice = 2650,
   spread = 40,
   exchangeRate = 83.5,
-  lastUpdated
+  
 }: LiveSpotPriceCardProps) {
   const CURRENT_DATE = '20. March 2025';
   const totalPrice = basePrice + spread;

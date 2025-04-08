@@ -4,7 +4,7 @@ import React, { useEffect, useRef } from 'react';
 
 export default function NeonGraphBackdrop() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animationFrameRef = useRef<number>();
+  const animationFrameRef = useRef<number | null>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -36,6 +36,7 @@ export default function NeonGraphBackdrop() {
       color: string;
 
       constructor() {
+        const canvas = canvasRef.current!;
         this.x = Math.random() * canvas.width;
         this.y = Math.random() * canvas.height;
         this.vx = (Math.random() - 0.5) * 0.5;
@@ -45,6 +46,7 @@ export default function NeonGraphBackdrop() {
       }
 
       update() {
+        const canvas = canvasRef.current!;
         this.x += this.vx;
         this.y += this.vy;
 
@@ -63,7 +65,7 @@ export default function NeonGraphBackdrop() {
         }
       }
 
-      draw() {
+      draw(ctx: CanvasRenderingContext2D) {
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
         ctx.fillStyle = this.color;
@@ -80,7 +82,7 @@ export default function NeonGraphBackdrop() {
 
       points.forEach(point => {
         point.update();
-        point.draw();
+        point.draw(ctx);
       });
 
       points.forEach((point1, i) => {

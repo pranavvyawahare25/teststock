@@ -100,7 +100,7 @@ export default function PriceCalculator({ className }: PriceCalculatorProps) {
     }
   }, [lmeError]);
 
-  const handlePremiumKeyPress = (e: React.KeyboardEvent<HTMLInputElement>, type: 'mcx' | 'lme') => {
+  const handlePremiumKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && freightInputRef.current) {
       freightInputRef.current.focus();
     }
@@ -225,7 +225,7 @@ export default function PriceCalculator({ className }: PriceCalculatorProps) {
               type="number"
               value={mcxPremium}
               onChange={(e) => setMcxPremium(e.target.value)}
-              onKeyDown={(e) => handlePremiumKeyPress(e, 'mcx')}
+              onKeyDown={handlePremiumKeyPress}
               className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 
                 focus:border-transparent [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none 
                 [&::-webkit-inner-spin-button]:appearance-none"
@@ -347,7 +347,7 @@ export default function PriceCalculator({ className }: PriceCalculatorProps) {
                 type="number"
                 value={lmePremium}
                 onChange={(e) => setLmePremium(e.target.value)}
-                onKeyDown={(e) => handlePremiumKeyPress(e, 'lme')}
+                onKeyDown={handlePremiumKeyPress}
                 className="flex-1 px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 
                   focus:border-transparent [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none 
                   [&::-webkit-inner-spin-button]:appearance-none"

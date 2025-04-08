@@ -65,7 +65,7 @@ export default function OnboardingForm({ onClose }: OnboardingFormProps) {
       };
 
       const missing = Object.entries(requiredFields)
-        .filter(([_, value]) => !value)
+        .filter(([ value]) => !value)
         .map(([key]) => key);
 
       if (missing.length > 0) {

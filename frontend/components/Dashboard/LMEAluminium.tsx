@@ -41,11 +41,9 @@ interface SpotPriceData {
 }
 
 export default function LMEAluminium() {
-  const [isReversed, setIsReversed] = useState(false);
   const [showExpanded, setShowExpanded] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(new Date());
-  const [isConnected, setIsConnected] = useState(false);
   const [priceData, setPriceData] = useState<AluminumPriceData | null>(null);
   const [spotPriceData, setSpotPriceData] = useState<SpotPriceData | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -159,10 +157,16 @@ export default function LMEAluminium() {
       try {
         const threeMonthSuccess = await fetchThreeMonthData();
         const spotSuccess = await fetchSpotPriceData();
-        setIsConnected(threeMonthSuccess && spotSuccess); // Show as "connected" when both are working
+        
+        if (!threeMonthSuccess) {
+          setError("Failed to fetch 3-month data");
+        }
+        if (!spotSuccess) {
+          setSpotError("Failed to fetch spot price data");
+        }
+        
         setLastUpdated(new Date());
       } catch (err) {
-        setIsConnected(false);
         console.error("Polling error:", err);
       }
     };
@@ -189,7 +193,14 @@ export default function LMEAluminium() {
     try {
       const threeMonthSuccess = await fetchThreeMonthData();
       const spotSuccess = await fetchSpotPriceData();
-      setIsConnected(threeMonthSuccess && spotSuccess);
+      
+      if (!threeMonthSuccess) {
+        setError("Failed to fetch 3-month data");
+      }
+      if (!spotSuccess) {
+        setSpotError("Failed to fetch spot price data");
+      }
+      
       setLastUpdated(new Date());
     } finally {
       setIsRefreshing(false);
@@ -367,17 +378,17 @@ export default function LMEAluminium() {
 
         {/* Mobile: Vertical layout */}
         <div className="sm:hidden flex flex-col space-y-4">
-          <PriceSection isSpot={!isReversed} mobile={true} />
+          <PriceSection isSpot={true} mobile={true} />
           <div className="w-full h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
-          <PriceSection isSpot={isReversed} mobile={true} />
+          <PriceSection isSpot={false} mobile={true} />
         </div>
 
         {/* Desktop: Original layout */}
         <div className="hidden sm:flex flex-col h-[calc(100%-4rem)] relative z-10">
           <div className="flex-1 flex flex-col justify-evenly">
-            <PriceSection isSpot={!isReversed} />
+            <PriceSection isSpot={true} />
             <div className="w-full h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent my-2" />
-            <PriceSection isSpot={isReversed} />
+            <PriceSection isSpot={false} />
           </div>
         </div>
 
@@ -523,7 +534,7 @@ export default function LMEAluminium() {
                 </h3>
                 <p className="text-xs sm:text-sm text-gray-700">
                   The current spot price reflects immediate market conditions
-                  for aluminium delivery. Today's{" "}
+                  for aluminium delivery. Today&apos;s{" "}
                   {SPOT_CHANGE >= 0 ? "increase" : "decrease"} indicates{" "}
                   {SPOT_CHANGE >= 0 ? "strengthening" : "weakening"} demand in
                   the physical market.

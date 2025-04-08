@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import Sidebar from "./SideBar";
 import MobileSidebarButton from "./MobileSidebarButton";
-import { SignedIn, SignedOut, useAuth } from "@clerk/nextjs";
+
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -18,7 +18,7 @@ export default function Layout({ children }: LayoutProps) {
   const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
   const isHomePage = pathname === "/";
-  const { isSignedIn } = useAuth();
+  
 
   // Handle dark mode
   useEffect(() => {

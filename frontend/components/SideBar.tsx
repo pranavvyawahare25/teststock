@@ -5,7 +5,6 @@ import { useRouter, usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   TrendingUp,
-  ClipboardList,
   Quote,
   Settings,
   ChevronLeft,
@@ -21,7 +20,7 @@ import {
   UserPlus,
   X,
 } from "lucide-react";
-import { SignInButton, SignOutButton, SignUpButton, SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
+import { SignInButton, SignUpButton, SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
 
 interface SidebarProps {
   isCollapsed: boolean;
@@ -94,6 +93,51 @@ export default function Sidebar({
           className="fixed inset-0 bg-black/30 backdrop-blur-sm z-30 md:hidden transition-opacity duration-300"
           onClick={onMobileClose}
         />
+      )}
+
+      {/* Sign Out Confirmation Modal */}
+      {showSignOutConfirm && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="bg-white rounded-xl p-6 max-w-sm w-full mx-4">
+            <h3 className="text-lg font-semibold mb-4">Sign Out</h3>
+            <p className="text-gray-600 mb-6">Are you sure you want to sign out?</p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowSignOutConfirm(false)}
+                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  // Handle sign out logic here
+                  setShowSignOutConfirm(false);
+                }}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+              >
+                Sign Out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Subscription Modal */}
+      {showSubscription && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold mb-4">Subscription</h3>
+            <p className="text-gray-600 mb-6">Upgrade your account to access premium features.</p>
+            <div className="flex justify-end">
+              <button
+                onClick={() => setShowSubscription(false)}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Sidebar */}

@@ -35,7 +35,7 @@ export default function ComingSoonModal({ isOpen, onClose }: ComingSoonModalProp
           </h2>
           
           <p className="text-gray-600">
-            We're working hard to bring you this feature. Stay tuned for updates!
+            Were working hard to bring you this feature. Stay tuned for updates!
           </p>
           
           <div className="pt-4">

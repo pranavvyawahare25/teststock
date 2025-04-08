@@ -20,8 +20,6 @@ const RBI_RATE = 84.4063;
 export default function MarketDashboard() {
   // Using mock data instead of backend hook
   const data = MOCK_LME_DATA || [];
-  const loading = false;
-  const error = null;
   const lastUpdated = new Date().toISOString();
 
   return (
@@ -51,7 +49,7 @@ export default function MarketDashboard() {
 
             {/* Historical Cards - Safe check for empty data */}
             {data.length > 1 ? (
-              data.slice(1).map((item, index) => (
+              data.slice(1).map((item) => (
                 <LMECashSettlement
                   key={item.date}
                   basePrice={item.price}

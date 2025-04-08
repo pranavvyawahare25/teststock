@@ -2,21 +2,21 @@ import React from 'react';
 import { HelpCircle, TrendingUp, TrendingDown } from 'lucide-react';
 
 interface PredictionIndicatorProps {
-  prediction: string;
-  confidence: string;
+  prediction: 'up' | 'down' | 'neutral';
+  confidence: 'high' | 'medium' | 'low';
 }
 
-const getPredictionColor = (prediction: string, confidence: string) => {
+const getPredictionColor = (prediction: PredictionIndicatorProps['prediction'], confidence: PredictionIndicatorProps['confidence']): string => {
   const baseColors = {
-    up: 'from-green-500 to-green-600',
-    down: 'from-red-500 to-red-600',
-    neutral: 'from-gray-500 to-gray-600'
+    up: 'bg-green-500',
+    down: 'bg-red-500',
+    neutral: 'bg-gray-500'
   };
   
   const opacity = {
     high: 'opacity-100',
-    medium: 'opacity-80',
-    low: 'opacity-60'
+    medium: 'opacity-75',
+    low: 'opacity-50'
   };
   
   return `${baseColors[prediction]} ${opacity[confidence]}`;

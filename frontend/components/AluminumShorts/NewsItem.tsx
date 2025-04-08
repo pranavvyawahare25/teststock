@@ -1,4 +1,5 @@
 import React from 'react';
+import Image from 'next/image';
 import { ExternalLink, Globe, Calendar, Tag } from 'lucide-react';
 import { format } from 'date-fns';
 import { NewsItem as NewsItemType } from './types';
@@ -12,9 +13,11 @@ export function NewsItem({ news }: NewsItemProps) {
   return (
     <article className="flex flex-col md:flex-row gap-6 p-6 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
       <div className="md:w-1/4">
-        <img
+        <Image
           src={`${news.imageUrl}/600x400`}
           alt={news.title}
+          width={600}
+          height={400}
           className="w-full h-48 object-cover rounded-lg"
         />
       </div>

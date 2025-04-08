@@ -40,6 +40,33 @@ interface CandleStickProps {
   };
 }
 
+interface TooltipPayload {
+  name?: string;
+  dataKey: string;
+  value: number;
+  color: string;
+  payload: ChartData;
+}
+
+interface TooltipProps {
+  active?: boolean;
+  payload?: TooltipPayload[];
+  label?: string;
+}
+
+interface BarShapeProps {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  index: number;
+  payload: ChartData;
+  dataKey: string;
+  yAxis: {
+    scale: (value: number) => number;
+  };
+}
+
 const generateTimeData = (): ChartData[] => {
   const data: ChartData[] = [];
   const times = ['14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00'];
@@ -114,7 +141,7 @@ const generateTimeData = (): ChartData[] => {
 };
 
 const CandleStick = (props: CandleStickProps) => {
-  const { x, y, width, payload, dataKey, yAxis } = props;
+  const { x, width, payload, dataKey, yAxis } = props;
   
   // Get the OHLC data based on dataKey
   const ohlcKey = `${dataKey}Ohlc` as keyof ChartData;
@@ -222,12 +249,12 @@ export default function TrendsPage() {
     }
   };
 
-  const CustomTooltip = ({ active, payload, label }: any) => {
+  const CustomTooltip = ({ active, payload, label }: TooltipProps) => {
     if (active && payload && payload.length) {
       return (
         <div className="bg-white p-3 rounded-lg shadow-lg border border-gray-100">
           <p className="text-sm font-medium text-gray-600 mb-2">{label}</p>
-          {payload.map((entry: any) => {
+          {payload.map((entry) => {
             const name = entry.name || entry.dataKey;
             const isLme = name.startsWith('lme');
             const prefix = isLme ? '$' : '₹';
@@ -408,9 +435,10 @@ export default function TrendsPage() {
               yAxisId="lme"
               dataKey="lmeCspOhlc"
               name="LME CSP"
-              shape={(props: any) => {
-                const scale = props.yAxis.scale;
-                return <CandleStick {...props} yAxis={{ scale }} />;
+              shape={(props: unknown) => {
+                const typedProps = props as BarShapeProps;
+                const scale = typedProps.yAxis.scale;
+                return <CandleStick {...typedProps} yAxis={{ scale }} />;
               }}
               fill={getLineColor('lmeCsp')}
             />
@@ -420,9 +448,10 @@ export default function TrendsPage() {
               yAxisId="lme"
               dataKey="lme3mOhlc"
               name="LME 3M"
-              shape={(props: any) => {
-                const scale = props.yAxis.scale;
-                return <CandleStick {...props} yAxis={{ scale }} />;
+              shape={(props: unknown) => {
+                const typedProps = props as BarShapeProps;
+                const scale = typedProps.yAxis.scale;
+                return <CandleStick {...typedProps} yAxis={{ scale }} />;
               }}
               fill={getLineColor('lme3m')}
             />
@@ -432,9 +461,10 @@ export default function TrendsPage() {
               yAxisId="mcx"
               dataKey="mcxMarOhlc"
               name="MCX Mar"
-              shape={(props: any) => {
-                const scale = props.yAxis.scale;
-                return <CandleStick {...props} yAxis={{ scale }} />;
+              shape={(props: unknown) => {
+                const typedProps = props as BarShapeProps;
+                const scale = typedProps.yAxis.scale;
+                return <CandleStick {...typedProps} yAxis={{ scale }} />;
               }}
               fill={getLineColor('mcxMar')}
             />
@@ -444,9 +474,10 @@ export default function TrendsPage() {
               yAxisId="mcx"
               dataKey="mcxAprOhlc"
               name="MCX Apr"
-              shape={(props: any) => {
-                const scale = props.yAxis.scale;
-                return <CandleStick {...props} yAxis={{ scale }} />;
+              shape={(props: unknown) => {
+                const typedProps = props as BarShapeProps;
+                const scale = typedProps.yAxis.scale;
+                return <CandleStick {...typedProps} yAxis={{ scale }} />;
               }}
               fill={getLineColor('mcxApr')}
             />
@@ -456,9 +487,10 @@ export default function TrendsPage() {
               yAxisId="mcx"
               dataKey="mcxMayOhlc"
               name="MCX May"
-              shape={(props: any) => {
-                const scale = props.yAxis.scale;
-                return <CandleStick {...props} yAxis={{ scale }} />;
+              shape={(props: unknown) => {
+                const typedProps = props as BarShapeProps;
+                const scale = typedProps.yAxis.scale;
+                return <CandleStick {...typedProps} yAxis={{ scale }} />;
               }}
               fill={getLineColor('mcxMay')}
             />

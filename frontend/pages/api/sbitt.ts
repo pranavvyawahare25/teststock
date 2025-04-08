@@ -29,8 +29,7 @@ export default async function handler(
     }
 
     res.status(200).json({ success: true, data: data.data });
-  } catch (error: any) {
-    console.error("🚨 Error fetching SBI TT:", error.message);
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
   }
 }
