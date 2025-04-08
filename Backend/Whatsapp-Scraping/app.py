@@ -215,9 +215,9 @@ def handle_error(error):
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 3232))
-    ngrok_url = "591c-2401-4900-57a3-b6fb-69c5-cc00-b7cb-2af0.ngrok-free.app"
+    server_url = "148.135.138.22"  # Your VPS IP address
     print(f'Server is running on port {port}')
-    print(f'Webhook URL: https://{ngrok_url}/webhook')
-    print(f'Status Callback URL: https://{ngrok_url}/status')
-    print(f'API URL: https://{ngrok_url}/api/price-data')
-    app.run(host='0.0.0.0', port=port, debug=True) 
+    print(f'Webhook URL: http://{server_url}/webhook')
+    print(f'Status Callback URL: http://{server_url}/status')
+    print(f'API URL: http://{server_url}/api/price-data')
+    app.run(host='0.0.0.0', port=port, debug=False)  # Set debug to False in production
