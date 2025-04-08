@@ -1,0 +1,59 @@
+services:
+  - type: web
+    name: stock-frontend
+    runtime: node
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_PUBLIC_WHATSAPP_SCRAPER_URL
+        fromService:
+          name: stock-whatsapp-scraper
+          type: web
+          property: url
+      - key: NEXT_PUBLIC_MCX_SCRAPER_URL
+        fromService:
+          name: stock-mcx-aluminium-scraper
+          type: web
+          property: url
+      - key: NEXT_PUBLIC_LME_SCRAPER_URL
+        fromService:
+          name: stock-lme-aluminium-scraper
+          type: web
+          property: url
+      - key: NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+        sync: false
+      - key: CLERK_SECRET_KEY
+        sync: false
+
+  - type: web
+    name: stock-whatsapp-scraper
+    runtime: python
+    rootDir: Backend/Whatsapp-Scraping
+    buildCommand: pip install -r requirements.txt
+    startCommand: python app.py
+    envVars:
+      - key: PORT
+        value: 10000
+
+  - type: web
+    name: stock-mcx-aluminium-scraper
+    runtime: python
+    rootDir: Backend/Scraping
+    buildCommand: ./render_build.sh
+    startCommand: python 3_months_MCX_aluminium_scrap.py
+    envVars:
+      - key: PORT
+        value: 10001
+
+  - type: web
+    name: stock-lme-aluminium-scraper
+    runtime: python
+    rootDir: Backend/Scraping
+    buildCommand: ./render_build.sh
+    startCommand: python 3_months_LME_Aluminium_scrap.py
+    envVars:
+      - key: PORT
+        value: 10002 
